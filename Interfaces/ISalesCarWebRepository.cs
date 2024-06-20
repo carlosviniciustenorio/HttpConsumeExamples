@@ -6,7 +6,7 @@ namespace HttpConsumeExamples.Interfaces
 {
     public interface ISalesCarWebRepository
     {
-        [Get("/anuncios/getAll")]
+        [Get("/anuncios")]
         Task<List<AnunciosResponse>> ReturnAnuncios(int skip, int take);
     }
 }

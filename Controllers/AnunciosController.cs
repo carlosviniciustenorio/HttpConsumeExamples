@@ -3,6 +3,7 @@ using HttpConsumeExamples.DTOs.Request;
 using HttpConsumeExamples.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Polly;
+using Polly.CircuitBreaker;
 
 namespace HttpConsumeExamples.Controllers
 {
@@ -24,17 +25,32 @@ namespace HttpConsumeExamples.Controllers
         [HttpGet]
         public async Task<List<AnunciosResponse>> GetAll([FromQuery] AnunciosQueryStringRequest query)
         {
-            try
+            List<AnunciosResponse> anuncios = new();
+            for (var i = 0; i < 10; i++)
             {
-                var anuncios = await _asyncPolicy.ExecuteAsync(() => _salesCarWebRepository.ReturnAnuncios(query.Skip, query.Take));
-                // var anuncios = await _salesCarWebWithoutRefitRepository.ReturnAnuncios(query.Skip, query.Take);
-                return anuncios;
+                try
+                {
+                    var result = await _asyncPolicy.ExecuteAsync(() =>
+                        _salesCarWebRepository.ReturnAnuncios(query.Skip, query.Take));
+                    Console.WriteLine("Sucesso na consulta");
+                    anuncios = result;
+
+
+                    // var anuncios = await _salesCarWebWithoutRefitRepository.ReturnAnuncios(query.Skip, query.Take);
+                    return anuncios;
+                }
+                catch (BrokenCircuitException)
+                {
+                    Console.WriteLine("Circuit breaker is open. Requests are blocked.");
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error to consume: {nameof(_salesCarWebRepository.ReturnAnuncios)}");
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Erro: {ex}");
-                throw;
-            }
+            return anuncios;
         }
     }
 }
